@@ -1,28 +1,12 @@
-// ======================================================================== //
-// Copyright 2018-2019 Ingo Wald                                            //
-//                                                                          //
-// Licensed under the Apache License, Version 2.0 (the "License");          //
-// you may not use this file except in compliance with the License.         //
-// You may obtain a copy of the License at                                  //
-//                                                                          //
-//     http://www.apache.org/licenses/LICENSE-2.0                           //
-//                                                                          //
-// Unless required by applicable law or agreed to in writing, software      //
-// distributed under the License is distributed on an "AS IS" BASIS,        //
-// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. //
-// See the License for the specific language governing permissions and      //
-// limitations under the License.                                           //
-// ======================================================================== //
-
 #include "SampleRenderer.h"
 
 // our helper library for window handling
 #include "glfWindow/GLFWindow.h"
 #include <GL/gl.h>
 
-/*! \namespace osc - Optix Siggraph Course */
 namespace osc {
 
+    //继承optix course提供的一个glfwindow库中的类，这个类的窗口已经写好了鼠标键盘交互的逻辑
     struct SampleWindow : public GLFCameraWindow
     {
         SampleWindow(const std::string& title,
@@ -36,7 +20,7 @@ namespace osc {
             sample.setCamera(camera);
         }
 
-        /*! callback that window got resized */
+        /*override一下鼠标交互逻辑 */
         virtual void mouseMotion(const vec2i& newPos) override
         {
             vec2i windowSize;
@@ -49,9 +33,9 @@ namespace osc {
             if (isPressed.middleButton && cameraFrameManip)
                 cameraFrameManip->mouseDragMiddle(vec2f(newPos - lastMousePos) / vec2f(windowSize) * 0.1f);
             lastMousePos = newPos;
-            /* empty - to be subclassed by user */
         }
 
+        /*override一下渲染逻辑，设置相机并调用渲染器的render函数*/
         virtual void render() override
         {
             if (cameraFrame.modified) {
@@ -63,6 +47,7 @@ namespace osc {
             sample.render();
         }
 
+        /*override一下绘制逻辑，在窗口开一张纹理铺满画面，然后把渲染结果贴上去*/
         virtual void draw() override
         {
             sample.downloadPixels(pixels.data());
@@ -71,7 +56,7 @@ namespace osc {
 
             glBindTexture(GL_TEXTURE_2D, fbTexture);
             GLenum texFormat = GL_RGBA;
-            GLenum texelType = GL_FLOAT;//GL_UNSIGNED_BYTE;
+            GLenum texelType = GL_FLOAT;
             glTexImage2D(GL_TEXTURE_2D, 0, texFormat, fbSize.x, fbSize.y, 0, GL_RGBA,
                 texelType, pixels.data());
 
@@ -125,10 +110,9 @@ namespace osc {
     };
 
 
-    /*! main entry point to this example - initially optix, print hello
-      world, then exit */
     extern "C" int main(int ac, char** av)
     {
+        /*下面加载模型，要根据自己的模型目录来写路径*/
         try {
             //Model* model = loadOBJ("../x64/Debug/models/sponza/sponza.obj", DIFFUSE);
             //Model* model = loadOBJ("../x64/Debug/models/fireplace_room/fireplace_room.obj", DIFFUSE);
@@ -163,8 +147,7 @@ namespace osc {
                vec3f(3000000.f) };
             const float worldScale = length(model->bounds.span());*/
 
-            SampleWindow* window = new SampleWindow("PL Tracer",
-                model, camera, light, worldScale);
+            SampleWindow* window = new SampleWindow("PL Tracer", model, camera, light, worldScale);
             window->enableFlyMode();
             window->run();
 
@@ -179,4 +162,4 @@ namespace osc {
         return 0;
     }
 
-} // ::osc
+}

@@ -5,12 +5,14 @@
 #define PI 3.1415926
 using namespace osc;
 
+/*PRD是一个随机采样器，通过prd.random.init()播随机种子，然后prd.random()得到(0,1)的随机数*/
 typedef gdt::LCG<16> Random;
 struct PRD {
     Random random;
     vec3f  pixelColor;
 };
 
+/*计算漫反射材质的bsdf、pdf，并采样下一次弹射方向*/
 __forceinline__ __device__ vec3f cal_diffuse_bsdf(const Interaction& isect, const vec3f& wi, vec3f *wo, float* pdf, const int ix, const int iy, const int frame_id) {
     vec3f diffuseColor = isect.mat_mes.diffuse;
     if (isect.mat_mes.diffuseTextureID != -1) {
@@ -37,6 +39,7 @@ __forceinline__ __device__ vec3f cal_diffuse_bsdf(const Interaction& isect, cons
     return bsdf;
 }
 
+/*计算镜面反射材质的bsdf、pdf，并采样下一次弹射方向*/
 __forceinline__ __device__ vec3f cal_metal_bsdf(const Interaction& isect, const vec3f& wi, vec3f* wo, float* pdf, const int ix, const int iy, const int frame_id) {
     vec3f diffuseColor = isect.mat_mes.diffuse;
     if (isect.mat_mes.diffuseTextureID != -1) {
@@ -61,6 +64,7 @@ __forceinline__ __device__ vec3f cal_metal_bsdf(const Interaction& isect, const 
     return bsdf;
 }
 
+/*计算纯镜面反射材质的bsdf、pdf，并采样下一次弹射方向*/
 __forceinline__ __device__ vec3f cal_mirror_bsdf(const Interaction& isect, const vec3f& wi, vec3f* wo, float* pdf, const int ix, const int iy, const int frame_id) {
     vec3f diffuseColor = isect.mat_mes.diffuse;
     if (isect.mat_mes.diffuseTextureID != -1) {
@@ -77,6 +81,7 @@ __forceinline__ __device__ vec3f cal_mirror_bsdf(const Interaction& isect, const
     return bsdf;
 }
 
+/*计算透射材质的bsdf、pdf，并采样下一次弹射方向*/
 __forceinline__ __device__ vec3f cal_dielectric_bsdf(const Interaction& isect, const vec3f& wi, vec3f* wo, float* pdf, const int ix, const int iy, const int frame_id) {
     vec3f diffuseColor = isect.mat_mes.diffuse;
     if (isect.mat_mes.diffuseTextureID != -1) {
@@ -113,6 +118,7 @@ __forceinline__ __device__ vec3f cal_dielectric_bsdf(const Interaction& isect, c
     return bsdf;
 }
 
+/*计算材质的bsdf、pdf，并采样下一次弹射方向，这里主要是用于分流*/
 __forceinline__ __device__ vec3f cal_bsdf(const Interaction &isect, const vec3f &wi, vec3f *wo, float *pdf,const int ix, const int iy, const int frame_id)
 {
     PRD prd;

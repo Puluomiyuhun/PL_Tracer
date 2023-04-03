@@ -1,30 +1,13 @@
-// ======================================================================== //
-// Copyright 2018-2019 Ingo Wald                                            //
-//                                                                          //
-// Licensed under the Apache License, Version 2.0 (the "License");          //
-// you may not use this file except in compliance with the License.         //
-// You may obtain a copy of the License at                                  //
-//                                                                          //
-//     http://www.apache.org/licenses/LICENSE-2.0                           //
-//                                                                          //
-// Unless required by applicable law or agreed to in writing, software      //
-// distributed under the License is distributed on an "AS IS" BASIS,        //
-// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. //
-// See the License for the specific language governing permissions and      //
-// limitations under the License.                                           //
-// ======================================================================== //
-
 #include "Model.h"
 #define TINYOBJLOADER_IMPLEMENTATION
 #include "3rdParty/tiny_obj_loader.h"
 #define STB_IMAGE_IMPLEMENTATION
 #include "3rdParty/stb_image.h"
-//std
 #include <set>
 
+/*小于号重载，模型index_t的排序*/
 namespace std {
-    inline bool operator<(const tinyobj::index_t& a,
-        const tinyobj::index_t& b)
+    inline bool operator<(const tinyobj::index_t& a, const tinyobj::index_t& b)
     {
         if (a.vertex_index < b.vertex_index) return true;
         if (a.vertex_index > b.vertex_index) return false;
@@ -39,8 +22,8 @@ namespace std {
     }
 }
 
-/*! \namespace osc - Optix Siggraph Course */
 namespace osc {
+    /*由于一个TriangleMesh对应一个材质，然而导入的.obj可能包含多个材质，因此要根据材质对象拆解模型。AddVertex就是拆解模型时 为新模型添加顶点的函数*/
     int addVertex(TriangleMesh* mesh,
         tinyobj::attrib_t& attributes,
         const tinyobj::index_t& idx,
@@ -66,16 +49,15 @@ namespace osc {
                 mesh->texcoord.push_back(texcoord_array[idx.texcoord_index]);
         }
 
-        // just for sanity's sake:
         if (mesh->texcoord.size() > 0)
             mesh->texcoord.resize(mesh->vertex.size());
-        // just for sanity's sake:
         if (mesh->normal.size() > 0)
             mesh->normal.resize(mesh->vertex.size());
 
         return newID;
     }
 
+    /*加载环境贴图*/
     int loadEnvmap(Model* model, const std::string& Path) {
         if (Path == "")
             return -1;
@@ -83,13 +65,17 @@ namespace osc {
         int comp;
         unsigned char* image = stbi_load(Path.c_str(),
             &res.x, &res.y, &comp, STBI_rgb_alpha);
-        Texture* texture = new Texture;
-        texture->resolution = res;
-        texture->pixel = (uint32_t*)image;
-        model->envmap = texture;
-        return 1;
+        if (image) {
+            Texture* texture = new Texture;
+            texture->resolution = res;
+            texture->pixel = (uint32_t*)image;
+            model->envmap = texture;
+            return 1;
+        }
+        return 0;
     }
 
+    /*加载贴图*/
     int loadTexture(Model* model,
         std::map<std::string, int>& knownTextures,
         const std::string& inFileName,
@@ -119,12 +105,10 @@ namespace osc {
             texture->resolution = res;
             texture->pixel = (uint32_t*)image;
 
-            /* iw - actually, it seems that stbi loads the pictures
-               mirrored along the y axis - mirror them here */
+            /*纹理上下颠倒，因为原点一个在上面一个在下面*/
             for (int y = 0; y < res.y / 2; y++) {
                 uint32_t* line_y = texture->pixel + y * res.x;
                 uint32_t* mirrored_y = texture->pixel + (res.y - 1 - y) * res.x;
-                int mirror_y = res.y - 1 - y;
                 for (int x = 0; x < res.x; x++) {
                     std::swap(line_y[x], mirrored_y[x]);
                 }
@@ -141,6 +125,7 @@ namespace osc {
         return textureID;
     }
 
+    /*model的读取。通过LoadObj读取.obj文件后，会得到若干个shape，每个shape会有若干个material*/
     Model* loadOBJ(const std::string& objFile, material_kind mat_kind)
     {
         Model* model = new Model;
@@ -164,16 +149,17 @@ namespace osc {
                 &err,
                 objFile.c_str(),
                 mtlDir.c_str(),
-                /* triangulate */true);
+                true);
         if (!readOK) {
             throw std::runtime_error("Could not read OBJ model from " + objFile + ":" + mtlDir + " : " + err);
         }
 
-        if (materials.empty() && mat_kind == DIFFUSE)
+        if (materials.empty())
             throw std::runtime_error("could not parse materials ...");
 
         std::cout << "Done loading obj file - found " << shapes.size() << " shapes with " << materials.size() << " materials" << std::endl;
-        std::map<std::string, int>      knownTextures;
+        std::map<std::string, int>      knownTextures;        //knownXXX就是记录重复用的
+        /*下面这个循环干的事：遍历每个shape，遍历每个shape中的material，根据material将模型拆解成TriangleMesh和material一一对应*/
         for (int shapeID = 0; shapeID < (int)shapes.size(); shapeID++) {
             tinyobj::shape_t& shape = shapes[shapeID];
 
@@ -199,6 +185,7 @@ namespace osc {
                         addVertex(mesh, attributes, idx1, knownVertices),
                         addVertex(mesh, attributes, idx2, knownVertices));
                     mesh->index.push_back(idx);
+                    /*根据材质类型决定要往mat_mes中写入哪些参数*/
                     if (mat_kind == DIFFUSE) {
                         mesh->mat_mes.diffuse = (const vec3f&)materials[materialID].diffuse;
                         mesh->mat_mes.diffuseTextureID = loadTexture(model,
@@ -249,8 +236,7 @@ namespace osc {
                     model->meshes.push_back(mesh);
             }
         }
-        // of course, you should be using tbb::parallel_for for stuff
-        // like this:
+        /*把所有三角面放进来，计算包围盒*/
         for (auto mesh : model->meshes)
             for (auto vtx : mesh->vertex)
                 model->bounds.extend(vtx);

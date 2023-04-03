@@ -1,53 +1,33 @@
-// ======================================================================== //
-// Copyright 2018-2019 Ingo Wald                                            //
-//                                                                          //
-// Licensed under the Apache License, Version 2.0 (the "License");          //
-// you may not use this file except in compliance with the License.         //
-// You may obtain a copy of the License at                                  //
-//                                                                          //
-//     http://www.apache.org/licenses/LICENSE-2.0                           //
-//                                                                          //
-// Unless required by applicable law or agreed to in writing, software      //
-// distributed under the License is distributed on an "AS IS" BASIS,        //
-// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. //
-// See the License for the specific language governing permissions and      //
-// limitations under the License.                                           //
-// ======================================================================== //
-
 #pragma once
 
 #include "optix7.h"
-// common std stuff
 #include <vector>
 #include <assert.h>
 
-/*! \namespace osc - Optix Siggraph Course */
 namespace osc {
 
-    /*! simple wrapper for creating, and managing a device-side CUDA
-        buffer */
+    /*! CUDABuffer就是申请的一段Cuda端的内存 */
     struct CUDABuffer {
         inline CUdeviceptr d_pointer() const
         {
             return (CUdeviceptr)d_ptr;
         }
 
-        //! re-size buffer to given number of bytes
+        //GPU端中重新规范内存的大小
         void resize(size_t size)
         {
             if (d_ptr) free();
             alloc(size);
         }
 
-        //! allocate to given number of bytes
+        //在GPU设备上申请一段内存
         void alloc(size_t size)
         {
-            assert(d_ptr == nullptr);
             this->sizeInBytes = size;
             CUDA_CHECK(Malloc((void**)&d_ptr, sizeInBytes));
         }
 
-        //! free allocated memory
+        //释放内存
         void free()
         {
             CUDA_CHECK(Free(d_ptr));
@@ -55,6 +35,7 @@ namespace osc {
             sizeInBytes = 0;
         }
 
+        //在Gpu端申请一段内存并将一串vt数据上传到Gpu端
         template<typename T>
         void alloc_and_upload(const std::vector<T>& vt)
         {
@@ -62,6 +43,7 @@ namespace osc {
             upload((const T*)vt.data(), vt.size());
         }
 
+        //从Cpu端传输数据到Gpu端
         template<typename T>
         void upload(const T* t, size_t count)
         {
@@ -71,6 +53,7 @@ namespace osc {
                 count * sizeof(T), cudaMemcpyHostToDevice));
         }
 
+        //从Gpu端传输数据到Cpu端
         template<typename T>
         void download(T* t, size_t count)
         {
@@ -85,4 +68,4 @@ namespace osc {
         void* d_ptr{ nullptr };
     };
 
-} // ::osc
+}

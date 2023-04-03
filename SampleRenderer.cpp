@@ -1,24 +1,10 @@
-// ======================================================================== //
-// Copyright 2018-2019 Ingo Wald                                            //
-//                                                                          //
-// Licensed under the Apache License, Version 2.0 (the "License");          //
-// you may not use this file except in compliance with the License.         //
-// You may obtain a copy of the License at                                  //
-//                                                                          //
-//     http://www.apache.org/licenses/LICENSE-2.0                           //
-//                                                                          //
-// Unless required by applicable law or agreed to in writing, software      //
-// distributed under the License is distributed on an "AS IS" BASIS,        //
-// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. //
-// See the License for the specific language governing permissions and      //
-// limitations under the License.                                           //
-// ======================================================================== //
+
+/*这个.cpp基本是按照optix course的源码来写的，因为是大量调用optix管线的api*/
+
 
 #include "SampleRenderer.h"
-// this include may only appear in a single source file:
 #include <optix_function_table_definition.h>
 
-/*! \namespace osc - Optix Siggraph Course */
 namespace osc {
 
   extern "C" char embedded_ptx_code[];
@@ -86,9 +72,11 @@ namespace osc {
     std::cout << "#osc: context, module, pipeline, etc, all set up ..." << std::endl;
 
     std::cout << GDT_TERMINAL_GREEN;
-    std::cout << "#osc: Optix 7 Sample fully set up" << std::endl;
+    std::cout << "#osc: Sample fully set up" << std::endl;
     std::cout << GDT_TERMINAL_DEFAULT;
   }
+
+  /*这里绑定全部纹理*/
   void SampleRenderer::createTextures()
   {
       int numTextures = (int)model->textures.size();
@@ -569,9 +557,7 @@ namespace osc {
     // build hitgroup records
     // ------------------------------------------------------------------
 
-    // we don't actually have any objects in this example, but let's
-    // create a dummy one so the SBT doesn't have any null pointers
-    // (which the sanity checks in compilation would complain about)
+    /*这里绑定SBT，对于每一个TriangleMesh，将其所有材质信息和场景信息都绑定到SBT中*/
 
     int numObjects = (int)model->meshes.size();
     std::vector<HitgroupRecord> hitgroupRecords;

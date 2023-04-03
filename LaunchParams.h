@@ -1,19 +1,3 @@
-// ======================================================================== //
-// Copyright 2018-2019 Ingo Wald                                            //
-//                                                                          //
-// Licensed under the Apache License, Version 2.0 (the "License");          //
-// you may not use this file except in compliance with the License.         //
-// You may obtain a copy of the License at                                  //
-//                                                                          //
-//     http://www.apache.org/licenses/LICENSE-2.0                           //
-//                                                                          //
-// Unless required by applicable law or agreed to in writing, software      //
-// distributed under the License is distributed on an "AS IS" BASIS,        //
-// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. //
-// See the License for the specific language governing permissions and      //
-// limitations under the License.                                           //
-// ======================================================================== //
-
 #pragma once
 
 #include "gdt/math/vec.h"
@@ -22,9 +6,10 @@
 
 namespace osc {
     using namespace gdt;
-    // for this simple example, we have a single ray type
-    enum { RADIANCE_RAY_TYPE = 0, SHADOW_RAY_TYPE, RAY_TYPE_COUNT };
+    //射线类型
+    enum { RADIANCE_RAY_TYPE = 0, SHADOW_RAY_TYPE = 1, RAY_TYPE_COUNT };
 
+    //每个TriangleMesh在SBT表中要绑定的材质数据
     struct TriangleMeshSBTData {
         vec3f* vertex;
         vec3f* normal;
@@ -33,21 +18,24 @@ namespace osc {
         material_mes mat_mes;
     };
 
+    //在渲染开始前，需要提前传入Gpu的一些参数，Gpu在shader中可以获取或者写入这些参数
     struct LaunchParams
     {
-        int numPixelSamples = 1;
-        int maxBounce = 5;
-        float lightness_change = 0.0f;
-        float saturate_change = 0.0f;
-        float contrast_change = 0.1f;
+        int numPixelSamples = 1;             //每帧的采样数
+        int maxBounce = 5;                   //最大追踪次数
+        float lightness_change = 0.0f;       //亮度后处理
+        float saturate_change = 0.0f;        //饱和度后处理
+        float contrast_change = 0.1f;        //对比度后处理
+
+        /*frame是用来存某一帧的最终渲染结果的，Gpu往里写，Cpu往外拿*/
         struct {
-            int       frameID = 0;
-            float4* colorBuffer;
-            float4* renderBuffer;
-            /*! the size of the frame buffer to render */
-            vec2i     size;
+            int       frameID = 0;           //帧编号
+            float4* colorBuffer;             //直接渲染得到的结果
+            float4* renderBuffer;            //colorBuffer经过后处理得到的结果
+            vec2i     size;                  //画面的尺寸
         } frame;
 
+        /*这个camera相机规定了相机位置、方向，以及相机视口的宽高尺寸与方向*/
         struct {
             vec3f position;
             vec3f direction;
@@ -55,11 +43,12 @@ namespace osc {
             vec3f vertical;
         } camera;
 
+        /*光源*/
         struct {
             vec3f origin, du, dv, power;
         } light;
 
-        OptixTraversableHandle traversable;
+        OptixTraversableHandle traversable;  //求交加速结构，里面包含了场景的所有三角面
     };
 
-} // ::osc
+}

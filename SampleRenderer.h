@@ -1,122 +1,65 @@
-// ======================================================================== //
-// Copyright 2018-2019 Ingo Wald                                            //
-//                                                                          //
-// Licensed under the Apache License, Version 2.0 (the "License");          //
-// you may not use this file except in compliance with the License.         //
-// You may obtain a copy of the License at                                  //
-//                                                                          //
-//     http://www.apache.org/licenses/LICENSE-2.0                           //
-//                                                                          //
-// Unless required by applicable law or agreed to in writing, software      //
-// distributed under the License is distributed on an "AS IS" BASIS,        //
-// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. //
-// See the License for the specific language governing permissions and      //
-// limitations under the License.                                           //
-// ======================================================================== //
-
 #pragma once
 
-// our own classes, partly shared between host and device
 #include "CUDABuffer.h"
 #include "LaunchParams.h"
 #include "gdt/math/AffineSpace.h"
 #include "Model.h"
 
-/*! \namespace osc - Optix Siggraph Course */
 namespace osc {
+    /*定义场景中的相机*/
     struct Camera {
-        /*! camera position - *from* where we are looking */
         vec3f from;
-        /*! which point we are looking *at* */
         vec3f at;
-        /*! general up-vector */
         vec3f up;
     };
-  /*! a sample OptiX-7 renderer that demonstrates how to set up
-      context, module, programs, pipeline, SBT, etc, and perform a
-      valid launch that renders some pixel (using a simple test
-      pattern, in this case */
+  /*! 渲染器核心 */
   class SampleRenderer
   {
-    // ------------------------------------------------------------------
-    // publicly accessible interface
-    // ------------------------------------------------------------------
   public:
-    /*! constructor - performs all setup, including initializing
-      optix, creates module, pipeline, programs, SBT, etc. */
     SampleRenderer(const Model* model, const QuadLight& light);
 
-    /*! render one frame */
-    void render();
+    void render();  //调用optix内核，进行渲染的函数
 
-    /*! resize frame buffer to given resolution */
-    void resize(const vec2i &newSize);
+    void resize(const vec2i &newSize);     //如果窗口大小变化了，进行渲染画布的尺寸调整
 
-    /*! download the rendered color buffer */
-    void downloadPixels(vec4f h_pixels[]);
+    void downloadPixels(vec4f h_pixels[]); //从gpu端下载渲染结果
 
-    /*! set camera to render with */
-    void setCamera(const Camera& camera);
+    void setCamera(const Camera& camera);  //场景中如果视角位置变化了，就要重新设定相机，并开始新的渲染任务
   protected:
-    // ------------------------------------------------------------------
-    // internal helper functions
-    // ------------------------------------------------------------------
-
-    /*! helper function that initializes optix and checks for errors */
-    void initOptix();
+    void initOptix();             //初始化optix内核
   
-    /*! creates and configures a optix device context (in this simple
-      example, only for the primary GPU device) */
-    void createTextures();
+    void createTextures();        //创建、绑定所有要传进gpu的纹理
 
-    void createContext();
+    void createContext();         //创建设备、上下文，绑定Gpu设备
 
-    /*! creates the module that contains all the programs we are going
-      to use. in this simple example, we use a single module from a
-      single .cu file, using a single embedded ptx string */
-    void createModule();
+    void createModule();          //创建Gpu模块，模块上要绑定shader代码（机器码）
     
-    /*! does all setup for the raygen program(s) we are going to use */
-    void createRaygenPrograms();
+    void createRaygenPrograms();  //创建RP Shader实例
     
-    /*! does all setup for the miss program(s) we are going to use */
-    void createMissPrograms();
+    void createMissPrograms();    //创建MP Shader实例
     
-    /*! does all setup for the hitgroup program(s) we are going to use */
-    void createHitgroupPrograms();
+    void createHitgroupPrograms();//创建HP Shader实例
 
-    /*! assembles the full pipeline of all programs */
-    void createPipeline();
+    void createPipeline();        //将上述Shader实例连接起来，绑定到管线当中
 
-    /*! constructs the shader binding table */
-    void buildSBT();
+    void buildSBT();              //绑定SBT，核心任务是将每个TriangleMesh和SBT中的一个Record项绑定，用于输入材质参数
 
-    OptixTraversableHandle buildAccel();
+    OptixTraversableHandle buildAccel();   //创建加速结构，核心任务是把所有TriangleMesh的三角面绑定成optix的加速结构形式
 
+  /*下面是optix的管线参数，学过Dx的话应该不陌生，和Dx的管线大同小异*/
   protected:
-    /*! @{ CUDA device context and stream that optix pipeline will run
-        on, as well as device properties for this device */
     CUcontext          cudaContext;
     CUstream           stream;
     cudaDeviceProp     deviceProps;
-    /*! @} */
-
-    //! the optix context that our pipeline will run in.
     OptixDeviceContext optixContext;
 
-    /*! @{ the pipeline we're building */
     OptixPipeline               pipeline;
     OptixPipelineCompileOptions pipelineCompileOptions = {};
     OptixPipelineLinkOptions    pipelineLinkOptions    = {};
-    /*! @} */
-
-    /*! @{ the module that contains out device programs */
     OptixModule                 module;
     OptixModuleCompileOptions   moduleCompileOptions = {};
-    /* @} */
 
-    /*! vector of all our program(group)s, and the SBT built around
-        them */
+    /*对于每一个要在Gpu中占用内存的参数，都要申请一个对应的Buffer变量*/
     std::vector<OptixProgramGroup> raygenPGs;
     CUDABuffer raygenRecordsBuffer;
     std::vector<OptixProgramGroup> missPGs;
@@ -125,33 +68,24 @@ namespace osc {
     CUDABuffer hitgroupRecordsBuffer;
     OptixShaderBindingTable sbt = {};
 
-    /*! @{ our launch parameters, on the host, and the buffer to store
-        them on the device */
     LaunchParams launchParams;
     CUDABuffer   launchParamsBuffer;
-    /*! @} */
 
     CUDABuffer colorBuffer;
     CUDABuffer renderBuffer;
-    /*! the camera we are to render with. */
-    Camera lastSetCamera;
 
-    /*! the model we are going to trace rays against */
+    Camera lastSetCamera;    //最后一次变动的相机位置
+
     const Model* model;
-    /*! one buffer per input mesh */
-    std::vector<CUDABuffer> vertexBuffer;
-    /*! one buffer per input mesh */
-    std::vector<CUDABuffer> indexBuffer;
-    //! buffer that keeps the (final, compacted) accel structure
-    //! buffer that keeps the (final, compacted) accel structure
-    CUDABuffer asBuffer;
+    std::vector<CUDABuffer> vertexBuffer;   //顶点数据buffer
+    std::vector<CUDABuffer> indexBuffer;    //索引数据buffer
+    CUDABuffer asBuffer;                    //加速结构buffer
 
-    std::vector<CUDABuffer> normalBuffer;
-    std::vector<CUDABuffer> texcoordBuffer;
-    std::vector<cudaArray_t>         textureArrays;
-    std::vector<cudaTextureObject_t> textureObjects;
+    std::vector<CUDABuffer> normalBuffer;   //法线buffer
+    std::vector<CUDABuffer> texcoordBuffer; //uv-buffer
+    std::vector<cudaArray_t>         textureArrays;   //纹理数组
+    std::vector<cudaTextureObject_t> textureObjects;  //已经申请好内存的纹理，可以在gpu端直接采样
 
-    bool accumulate = true;
   };
 
-} // ::osc
+}
